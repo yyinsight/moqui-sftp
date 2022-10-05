@@ -24,6 +24,7 @@ import net.schmizz.sshj.transport.verification.PromiscuousVerifier
 import net.schmizz.sshj.userauth.UserAuthException
 import net.schmizz.sshj.userauth.keyprovider.KeyPairWrapper
 import net.schmizz.sshj.userauth.keyprovider.KeyProvider
+import net.schmizz.sshj.userauth.keyprovider.OpenSSHKeyFile
 import net.schmizz.sshj.userauth.keyprovider.PKCS8KeyFile
 import net.schmizz.sshj.xfer.InMemorySourceFile
 import org.moqui.util.ObjectUtilities
@@ -57,6 +58,7 @@ class SftpClient implements Closeable, AutoCloseable {
     private int port = SFTP_PORT
     private ArrayList<KeyProvider> keyProviders = null
     private boolean preserveAttributes = true
+    private OpenSSHKeyFile sshKeyFile = null;
 
     SftpClient(String host, String username, int port = SFTP_PORT) {
         int hostColonIdx = host.indexOf(":")
@@ -94,6 +96,14 @@ class SftpClient implements Closeable, AutoCloseable {
         return this
     }
 
+    // Authenticate with OpenSSHKeyFile
+    SftpClient openSSHKeyFile(String openSSHKeyFilePath){
+        sshKeyFile = new OpenSSHKeyFile();
+        sshKeyFile.init(openSSHKeyFilePath as File);
+
+        return this;
+    }
+
     /** Workaround for SSHJ behavior of set file attributes after put/upload, set to false to not set file attributes after put/upload */
     SftpClient preserveAttributes(boolean pa) { preserveAttributes = pa; return this }
 
@@ -110,6 +120,8 @@ class SftpClient implements Closeable, AutoCloseable {
         try {
             if (password) {
                 sshClient.authPassword(username, password)
+            } else if(sshKeyFile){
+                sshClient.authPublickey(username, sshKeyFile);
             } else {
                 sshClient.authPublickey(username, keyProviders)
             }
